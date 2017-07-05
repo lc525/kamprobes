@@ -1,0 +1,59 @@
+#!/bin/bash
+CLEAN_DEP_BUILDS=0
+CLEAN_GEN=0
+
+
+function print_usage {
+  echo "./.clean [OPTIONS]"
+  echo "OPTIONS:"
+  echo "  -g : clean all generated files"
+  echo "  -d : clean builds of dependencies, forcing a recompile on next build"
+  echo "  -e : clean external dependencies, forcing a download on next build"
+  echo "  -h : prints this help message"
+}
+
+while getopts ":hdge" opt; do
+  case $opt in
+    h)
+      print_usage
+      exit 0
+      ;;
+    d)
+      CLEAN_DEP_BUILDS=1
+      ;;
+    g)
+      CLEAN_GEN=1
+      ;;
+    e)
+      exit 0
+      ;;
+  esac
+done
+
+echo "Cleaning build dirs ..."
+ls -1A | grep -v '.*.json\|^\.' | xargs -I files rm -rf "files"
+find .. -name "*.o" -exec rm '{}' \;
+find .. -name "*.cmd" -exec rm '{}' \;
+
+# clean generated files
+if [ ${CLEAN_GEN} -eq 1 ]
+then
+echo "Cleaning generated files ..."
+rm -f ../scripts/blacklist.fn
+rm -f .subsys-for-*
+rm -f *.json
+rm -f ../src/include/rscfl/subsys_list.h
+rm -f ../src/include/rscfl/kernel/subsys_addr.h
+rm -f ../src/include/rscfl/kernel/custom_subsys.h
+rm -f ../src/include/rscfl/kernel/default_subsys.h
+rm -f ../src/kernel/subsys_addr.h
+fi
+
+# clean dependency builds
+if [ ${CLEAN_DEP_BUILDS} -eq 1 ]
+then
+  echo "Cleaning external dependencies build dirs ..."
+  rm -rf ../external/gtest/build-aux/*
+fi
+
+# remove dependencies

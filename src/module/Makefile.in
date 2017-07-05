@@ -1,0 +1,4 @@
+obj-m := @kam_MOD_NAME@.o
+@kam_MOD_NAME@-y := @KAM_O_FILES@
+
+ccflags-y := @KAM_MOD_INCLUDES@

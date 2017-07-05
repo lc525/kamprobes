@@ -1,0 +1,235 @@
+#!/bin/bash
+CMAKE_REQUIRED_VER="3.2"
+CLEAN=0
+TYPE="release"
+VBOSE=0
+JOPT=`nproc`
+INSTALL=""
+TARGETS=""
+SUBSYS_ARG="--no-fp"
+RSCFL_BENCH=0
+JUST_CMAKE=0
+HDR_SLEEP=1
+
+# compare software versions
+# Dennis Williamson's version [http://stackoverflow.com/a/4025065]
+vercomp () {
+    if [[ $1 == $2 ]]
+    then
+        return 0
+    fi
+    local IFS=.
+    local i ver1=($1) ver2=($2)
+    # fill empty fields in ver1 with zeros
+    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++))
+    do
+        ver1[i]=0
+    done
+    for ((i=0; i<${#ver1[@]}; i++))
+    do
+        if [[ -z ${ver2[i]} ]]
+        then
+            # fill empty fields in ver2 with zeros
+            ver2[i]=0
+        fi
+        if ((10#${ver1[i]} > 10#${ver2[i]}))
+        then
+            return 1
+        fi
+        if ((10#${ver1[i]} < 10#${ver2[i]}))
+        then
+            return 2
+        fi
+    done
+    return 0
+}
+
+# linux build comments for Arch linux
+#
+# sudo pacman -S abs
+# abs
+# mkdir $HOME/abs
+# cp -r /var/abs/core/linux $HOME/abs
+# cd $HOME/abs
+# makepkg -os --skipinteg  #download & unpack sources
+# patch config to include
+#   CONFIG_KALLSYMS_ALL=y
+#   CONFIG_DEBUG_INFO=y
+#
+# after updating config
+# updpkgsums
+#
+
+# Set LINUX_ROOT here or set a RSCFL_LINUX_ROOT environment variable pointing
+# to the root of a valid linux source tree
+#
+if [[ -z "$RSCFL_LINUX_ROOT" ]]
+then
+  LINUX_ROOT="/home/lc525/dev/linux-stable-rc"
+else
+  LINUX_ROOT=$RSCFL_LINUX_ROOT
+fi
+
+# Set LINUX_BUILD here or set a RSCFL_LINUX_BUILD environment variable.
+# You will typically determine this path by running
+#
+# $ objdump -d vmlinux
+#
+# and picking the address of a callq instruction. Then pass that address
+# to addr2line:
+#
+# $ addr2line -e vmlinux ffffffff8105da50
+#
+# The prefix of the path printed by addr2line that is the root of a linux
+# source tree should be set as the value of LINUX_BUILD (or as the value of the
+# RSCFL_LINUX_BUILD environment variable). For example, if addr2line outputs
+#
+# /home/calucian/dev-kernel/linux-dirty/arch/x86/mm/pf_in.c:465
+#
+# then set the variable to /home/calucian/dev-kernel/linux-dirty
+#
+if [[ -z "$RSCFL_LINUX_BUILD" ]]
+then
+  LINUX_BUILD="$LINUX_ROOT"
+else
+  LINUX_BUILD=$RSCFL_LINUX_BUILD
+fi
+
+# Set LINUX_VMLINUX here or set a RSCFL_LINUX_VMLINUX environment variable
+# pointing to a valid vmlinux file (a vmlinux built with debug info:
+# CONFIG_DEBUG_INFO=y)
+#
+if [[ -z "$RSCFL_LINUX_VMLINUX" ]]
+then
+  LINUX_VMLINUX="$LINUX_ROOT/vmlinux"
+else
+  LINUX_VMLINUX=$RSCFL_LINUX_VMLINUX
+fi
+
+
+# you shouldn't need to change anything below this line
+# -----
+
+function print_usage {
+  echo "./.build [OPTIONS]"
+  echo "OPTIONS:"
+  echo "  -r : build release version"
+  echo "  -b : [dev] enable rscfl benchmarking features"
+  echo "  -d : [dev] build debug version"
+  echo "  -c : clean before build"
+  echo "  -v : verbose build"
+  echo "  -p : [experimental] also generate function pointer subsys addreses"
+  echo "  -i : run make install after build"
+  echo "  -t <TARGETS> : only build the specified targets"
+  echo "  -j <NUM> : pass -j<NUM> to make"
+  echo "  -h : prints this help message"
+  echo "  -s : sleeps for this many seconds before build"
+  echo "  -x : just run cmake to generate Makefiles, without building"
+}
+
+while getopts ":hrdcbvpxit:j:s:" opt; do
+  case $opt in
+    h)
+      print_usage
+      exit 0
+      ;;
+    r)
+      TYPE="release"
+      ;;
+    d)
+      TYPE="debug"
+      ;;
+    c)
+      CLEAN=1
+      ;;
+    v)
+      VBOSE=1
+      ;;
+    p)
+      SUBSYS_ARG=""
+      ;;
+    i)
+      INSTALL="install"
+      ;;
+    b)
+      RSCFL_BENCH=1
+      ;;
+    t)
+      TARGETS=$OPTARG
+      ;;
+    j)
+      JOPT=$OPTARG
+      ;;
+    s)
+      HDR_SLEEP=$OPTARG
+      ;;
+    x)
+      JUST_CMAKE=1
+      ;;
+    \?)
+      echo "Invalid option -$OPTARG" >&2
+      print_usage
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument"
+      print_usage
+      exit 1
+      ;;
+  esac
+done
+
+if [ $CLEAN -eq 1 ]
+then
+  ./.clean
+fi
+
+# Check that system cmake exists and is at required version
+CMAKE_BIN="cmake"
+{
+cmakeVER=`cmake --version | grep version | awk '{ print($3) }'`
+} &> /dev/null
+
+vercomp "$cmakeVER" $CMAKE_REQUIRED_VER
+verCompat=$?
+if [ -z $cmakeVER ] || [ "$verCompat" -eq 2 ]
+then
+  # check external cmake exists
+  EXT_CMAKE="../external/CMake-3.8.0/build-aux/bin/cmake"
+  if [ ! -f $EXT_CMAKE ]
+  then
+    BUILD_DIR=`pwd`
+    NPROC=`nproc`
+    #cmake not in path, we have to download it
+    if [ ! -f "../external/v3.8.0.tar.gz" ]
+    then
+      wget -P ../external https://github.com/Kitware/CMake/archive/v3.8.0.tar.gz
+    fi
+    cd ../external
+    if [ ! -d "CMake-3.8.0" ]
+    then
+      tar -zxf v3.8.0.tar.gz
+    fi
+    cd CMake-3.8.0
+    mkdir -p build-aux
+    ./bootstrap --parallel=$NPROC --prefix=build-aux
+    make & make install
+  else
+    CMAKE_BIN=$EXT_CMAKE
+    echo "Using locally built cmake"
+  fi
+fi
+
+
+$CMAKE_BIN -DCMAKE_BUILD_TYPE=$TYPE ..
+export KAM_LINUX_HEADERS="~/dev/linux-stable-rc/include/linux"
+if [ $JUST_CMAKE -eq 0 ]
+then
+  if [ $VBOSE -eq 1 ]
+  then
+    make VERBOSE=1 -j$JOPT $TARGETS $INSTALL
+  else
+    make -s -j$JOPT $TARGETS $INSTALL
+  fi
+fi
+
