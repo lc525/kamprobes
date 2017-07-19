@@ -35,6 +35,7 @@ function(KAM_KBUILD MOD_NAME INCLUDES OUT_DIR SRC DEPS)
   #list(APPEND _kam_include_path -I$ENV{KAM_LINUX_HEADERS}/arch/x86/include/generated/uapi)
   JOIN("${_kam_include_path}" " " _kam_includes)
   set(KAM_MOD_INCLUDES ${_kam_includes})
+  message(${KAM_MOD_INCLUDES})
 
   if(NOT DEFINED DEFINE_NDEBUG)
     set(K_DBG "-g")
@@ -71,7 +72,7 @@ function(KAM_KBUILD MOD_NAME INCLUDES OUT_DIR SRC DEPS)
   set( MODULE_OUTPUT_FILES    ${_kam_objsfp} )
   set( MODULE_SOURCE_DIR  ${OUT_DIR} )
   set( KERNEL_DIR "/lib/modules/${CMAKE_SYSTEM_VERSION}/build/" )
-  set( KBUILD_CMD $(MAKE)
+  set( KBUILD_CMD $(MAKE) V=1
                   -C ${KERNEL_DIR}
                   M=${MODULE_SOURCE_DIR}
                   modules )
@@ -81,6 +82,7 @@ function(KAM_KBUILD MOD_NAME INCLUDES OUT_DIR SRC DEPS)
                       COMMAND ${KBUILD_CMD}
                       COMMAND cp -f ${MODULE_BIN_FILE} ${PROJECT_BINARY_DIR}
                       COMMAND find ../src -name "*.o" -exec mv {} ${OUT_DIR} \;
+                      COMMAND find ../src -name "*.o.d" -exec mv {} ${OUT_DIR} \;
                       COMMAND find ../src -name "*.cmd" -exec mv {} ${OUT_DIR} \;
                       DEPENDS ${_kam_srcf} ${DEPS}
                       COMMENT "Running kbuild for ${MODULE_BIN_FILE}"

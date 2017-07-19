@@ -1,6 +1,7 @@
 #!/bin/bash
 CLEAN_DEP_BUILDS=0
 CLEAN_GEN=0
+CLEAN_EXTERNAL=0
 
 
 function print_usage {
@@ -25,7 +26,7 @@ while getopts ":hdge" opt; do
       CLEAN_GEN=1
       ;;
     e)
-      exit 0
+      CLEAN_EXTERNAL=1
       ;;
   esac
 done
@@ -57,3 +58,8 @@ then
 fi
 
 # remove dependencies
+if [ ${CLEAN_EXTERNAL} -eq 1 ]
+then
+  echo "Cleaning external dependencies ..."
+  find ../external/ ! -name '.gitignore' ! -path ../external/ -delete
+fi

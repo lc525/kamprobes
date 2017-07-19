@@ -1,14 +1,14 @@
-NOTE: Resourceful (rscfl) is released under a dual open-source license:
+NOTE: The Kamprobes project is released under a dual open-source license:
   * GPLv2
   * Apache License 2.0 (ALv2)
 
-Running the Resourceful kernel module under Linux will require that you abide
-by the GPLv2 license, as parts of the code make use of private and GPL-only
-Linux kernel symbols (Making the module a derivative work of Linux).
+Running kamprobes under Linux will require that you abide by the GPLv2 license,
+as parts of the code make use of private and GPL-only Linux kernel symbols
+(Making the module a derivative work of Linux).
 
 However, the authors also explicitly license all parts of the code that can be
 used without referring to those symbols under Apache License 2.0. For example,
-this allows reusing Resourceful code that is not Linux-derived work in porting
+this allows reusing kamprobes code that is not Linux-derived work in porting
 to other operating systems or as part of closed-source applications.
 
 GPL-only code will be marked by a notice like the following:

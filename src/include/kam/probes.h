@@ -1,9 +1,13 @@
 #ifndef _RSCFL_KAMPROBES_H_
 #define _RSCFL_KAMPROBES_H_
 
+#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/types.h>
+
 #include "kam/constants.h"
 #include "ldry/macros/unused.h"
+#include "ldry/macros/bits.h"
 
 typedef enum {
     ADDR_INVALID        = 0,
@@ -14,8 +18,42 @@ typedef enum {
     //ADDR_TYPE_BITS bits (MAX_VALUE=2^ADDR_TYPE_BITS); the other bits are
     //reserved for custom-defined subsystem probe types
 } addr_type;
-#define ADDR_TYPE_BITS 3
-#define ADDR_TYPE_MASK 7
+
+typedef enum {
+  ADDR_KERNEL = 0,
+  ADDR_MODULE = 1
+} addr_loc;
+
+/*
+The probe type is a 1 byte field where the bits have the following meaning:
+- bits: 7654 | 3 | 210
+- role: SSSS | L | TTT
+
+The codification of roles is as follows:
+    S: Subtype that can be arbitrarily set by custom subsystems - each custom
+       subsystem can set 16 subtypes of probes, with each subtype defining
+       particular entry and return handler functions;
+    L: Location of probed address (1 bit) - defines whether the probe is on a
+       location in the kernel itself or inside a module -- module probes need
+       their addresses to be computed at runtime, we only store a pre-relocation
+       offset in the list;
+    T: Address type (3 bits) - identifies the type of address stored in the
+       probe, with possible values being given by the addr_type enum. The
+       mechanisms of how kamprobes work vary depending on the address type, with
+       ADDR_OF_CALL probing caller locations and ADDR_OF_FUNC,
+       ADDR_KERNEL_SYSCALL probing the callee (and being triggered from within
+       the stack frame of the called function)
+
+*/
+#define ADDR_TYPE_BITS 3 // 3 bits dedicated to addr type
+#define ADDR_LOC_BITS 1  // 1 bit  dedicated to probe location
+                         //    the bit will be 0 for kernel probes
+                         //    the bit will be 1 for module probes
+#define ADDR_FIXED_BITS (ADDR_TYPE_BITS + ADDR_LOC_BITS)
+#define ADDR_TYPE_MASK SET_ALL_BITS(ADDR_TYPE_BITS)
+#define ADDR_LOC_MASK SET_ALL_BITS(ADDR_LOC_BITS) << ADDR_TYPE_BITS
+#define SUBSYS_PROBE_TYPE(subtype, loc, addr_type)   \
+        (subtype << ADDR_FIXED_BITS) | (loc << ADDR_TYPE_BITS) | addr_type
 
 typedef enum {
   PROBE_NO_HANDLERS,
@@ -25,12 +63,28 @@ typedef enum {
   PROBE_REMOVED
 } kamprobe_state;
 
+typedef enum {
+  MODULE_INIT,
+  MODULE_CORE
+} module_section;
+
+struct module_addr {
+  unsigned int offset;
+  char name[MODULE_NAME_LEN];
+  module_section section;
+};
+typedef struct module_addr module_addr;
+
 struct kamprobe {
   int tag;
+  void *tag_data;
   kamprobe_state state;
 
-  u8 *addr;
   char addr_type;
+  union {
+    u8 *addr;
+    module_addr m_addr; // the probe is set on a kernel module
+  };
   unsigned char orig_code[CALL_WIDTH];
 
   unsigned char *probe_code;
@@ -113,10 +167,7 @@ asm __volatile__("" :: "m" (__rscfl_reserved_stack)); /* prevent optim */    \
 
 
 int kamprobes_init(int max_probes);
-EXPORT_SYMBOL(kamprobes_init);
-
 int kamprobe_register(kamprobe *probe);
-EXPORT_SYMBOL(kamprobe_register);
 
 int kamprobe_unregister(kamprobe *probe);
 void kamprobes_unregister_all(void);

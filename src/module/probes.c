@@ -19,7 +19,7 @@
 
 #include "kam/constants.h"
 #include "kam/asm2bin.h"
-#include "kam/kallsyms.h"
+#include "kam/kallsyms_config.h"
 #include "ldry/macros/unused.h"
 #include "ldry/kernel/macros/debug.h"
 
@@ -48,6 +48,30 @@ int kamprobes_init(int max_probes)
   }
   return 0;
 }
+EXPORT_SYMBOL(kamprobes_init);
+
+u8* resolve_module_addr(module_addr m_addr) {
+ //TODO(lc525) build module cache?
+ //investigate find_module_sections
+ struct module* mod;
+ mod = find_module(m_addr.name);
+ if (mod != NULL) {
+  switch(m_addr.section) {
+    case MODULE_CORE:
+      return (u8*)(mod->core_layout.base + m_addr.offset);
+    case MODULE_INIT:
+      return (u8*)(mod->init_layout.base + m_addr.offset);
+    default: {
+      printk(KERN_NOTICE "kamprobes: unrecognized module section %d\n", m_addr.section);
+      return NULL;
+    }
+  }
+ }
+ else {
+   printk(KERN_NOTICE "kamprobes: kernel module not found %s for setting probe.\n", m_addr.name);
+   return NULL;
+ }
+}
 
 int kamprobe_register(kamprobe* probe)
 {
@@ -66,8 +90,7 @@ int kamprobe_register(kamprobe* probe)
   char *target;
   int32_t addr_ptr;
   unsigned char text_poke_isns[CALL_WIDTH];
-  u8 *addr = probe->addr;
-
+  u8 *addr;
   int i;
 
   const char callq_opcode = 0xe8;
@@ -75,6 +98,14 @@ int kamprobe_register(kamprobe* probe)
   // test rax, rax
   const char jmpnz_cond[3] = {0x48, 0x85, 0xC0};
 
+  switch (probe->addr_type & ADDR_LOC_MASK) {
+    case ADDR_MODULE:
+      addr = resolve_module_addr(probe->m_addr);
+      break;
+    case ADDR_KERNEL:
+    default:
+      addr = probe->addr;
+  }
 
   // Refuse to register probes on any addr which is not a callq or a noop
   if((!is_call_insn(addr) && !is_noop(addr))) {
@@ -241,6 +272,7 @@ int kamprobe_register(kamprobe* probe)
    *put_online_cpus();*/
   return 0;
 }
+EXPORT_SYMBOL(kamprobe_register);
 
 int kamprobe_unregister(kamprobe *probe){
   if(probe->state == PROBE_ACTIVE) {
