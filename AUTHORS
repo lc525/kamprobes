@@ -5,9 +5,9 @@
   * Copyright 2015-2017 James Snee,
   * Copyright 2015-2017 Ripduman Sohan
 
-The above are referred to as "The rscfl owners" at the top of every code file.
-You should consider that phrase to be equivalent the joint copyright notices
-above.
+The above are referred to as "The kamprobes owners" at the top of every code
+file. You should consider that phrase to be equivalent the joint copyright
+notices above.
 
 Owners hash: 91287e657ad9e9b905a1a73a2911d234dd9eb6fc19b648db464ce720ced26914
 
@@ -15,7 +15,7 @@ Owners hash: 91287e657ad9e9b905a1a73a2911d234dd9eb6fc19b648db464ce720ced26914
 
 # After commit 527b373c407 (after first public release):
 
-Copyright statements added by contributors to every file. "The rscfl owners"
+Copyright statements added by contributors to every file. "The kamprobes owners"
 list is kept updated and checksummed at
 
 http://www.cl.cam.ac.uk/research/dtg/rscfl/contributors.html
