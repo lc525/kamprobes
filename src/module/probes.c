@@ -1,3 +1,12 @@
+/**** Notice
+ * probes.c: kamprobes source code
+ *
+ * Copyright 2015-2017 The kamprobes owners <lucian.carata@cl.cam.ac.uk>
+ *
+ * This file is part of the kamprobes open-source project: github.com/lc525/kamprobes;
+ * Its licensing is governed by the LICENSE file at the root of the project.
+ **/
+
 /* KAMprobes (Kernel Advanced Measurement Probes) implementation
  *
  * A KAMprobe is a probe targeted at instrumenting __call sites__ (the place
@@ -315,5 +324,3 @@ void kamprobes_unregister_all(void)
   no_active_probes = 0;
   put_online_cpus();
 }
-
-

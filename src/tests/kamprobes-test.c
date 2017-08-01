@@ -1,3 +1,12 @@
+/**** Notice
+ * kamprobes-test.c: kamprobes source code
+ *
+ * Copyright 2015-2017 The kamprobes owners <lucian.carata@cl.cam.ac.uk>
+ *
+ * This file is part of the kamprobes open-source project: github.com/lc525/kamprobes;
+ * Its licensing is governed by the LICENSE file at the root of the project.
+ **/
+
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
